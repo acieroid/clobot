@@ -1,0 +1,12 @@
+Bot IRC
+    o Connection
+        -> à un serveur IRC (auth, ...)
+        -> Join un channel
+    o Parse les commandes reçues
+        -> en fonctions de regex associées à des hooks
+    o Commandes/variables utiles : 
+        -> le nick du bot
+        -> les chans/servers
+        -> parler sur un chan
+        -> lancer des commandes bash
+    
