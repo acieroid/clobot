@@ -33,7 +33,8 @@
 ; Hooks
 (defn create-hooks []
   (let [simple-hook
-	(struct hook '(#(ref-set *stop* 1)) #"lol" #(list %))]
+	(struct hook (list (fn [x] (dosync (ref-set (debug *stop*) 1))))
+		#"lol" #(list %))]
     (dosync (ref-set *connection* 
 		     (add-recv-hook @*connection* simple-hook)))))
 			     

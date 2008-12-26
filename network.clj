@@ -1,16 +1,53 @@
 ;; @file:network.clj
 ;; Commandes relatives aux connections, envoi de données dans les
 ;; sockets, tout ce qui touche au réseau.
+(in-ns 'clobot)
+(clojure.core/refer 'clojure.core)
+
 (import '(java.net Socket SocketException)
 	'(java.io OutputStreamWriter InputStreamReader)
 	'(clojure.lang LineNumberingPushbackReader))
-(in-ns 'clobot)
-(clojure.core/refer 'clojure.core)
+
+(def *stop* (ref nil))
 ;; TODO:
 ;; créer une connection
 ;; écouter sur une connection
 ;; envoyer du texte sur une connection
 ;; attendre la réponse
+(defmacro debug
+  [expr]
+  `(let [value# ~expr]
+     (println '~expr "=>" value#)
+     (flush)
+     value#))
+
+;; Les hooks : 
+;; Crée un hook via create-recv-hook, qui retourne un hook
+;; On ajoute des fonctions au hook
+;; Le hook possède une regex, qui quand elle est matchée, appelle
+;; toute ses fonctions avec certains arguments (dépend du hook, 
+;; nick, chan, message la plupart du temps)
+;; La fonction fait ce qu'elle souhaite avec ces arguments
+(defstruct hook :functions :regexp :parse-args)
+
+(defn add-recv-hook [connection hook]
+  "Crée un hook"
+  (assoc connection :recv-hooks
+	 (cons 
+	  hook
+	  (:recv-hooks connection))))
+
+(defn add-func [hook function]
+  "Ajoute une fonction à appeler à un hook"
+  (assoc hook :functions 
+	 (cons function (:functions hook))))
+
+(defn call-functions [hook string]
+  "Appelle toutes les fonctions du hook"
+  (let [args ((:parse-args hook) string)]
+    (doseq [f (:functions hook))]
+      (apply f args))))
+
 
 ;; Structure "connection" contenant :
 ;;   -> Des hooks à appeler quand on reçoit du texte
@@ -33,41 +70,35 @@
 (defn write [connection & text]
   "Écrit des données dans une connection, via print"
   (binding [*out* (:output connection)]
-    (print text)
+    (apply print text)
     (flush)))
   
-(defn read [connection]
+(defn recv [connection]
   "Lit des données d'une connection, via read"
-  (read (:input connection) false 'eof))
+  (let [cb #(. (:input connection) read)]
+    (loop [s nil
+	   current-byte (cb)]
+      (if (== current-byte 10)
+	s
+	(recur (str s (char current-byte)) (cb))))))
+		 
+(defn call-hooks-if-match [connection data]
+  (doseq [h (:recv-hooks connection)]
+    (if (re-seq (:regexp h) data)
+      (call-functions h data))))
 
-;; Les hooks : 
-;; Crée un hook via create-recv-hook, qui retourne un hook
-;; On ajoute des fonctions au hook
-;; Le hook possède une regex, qui quand elle est matchée, appelle
-;; toute ses fonctions avec certains arguments (dépend du hook, 
-;; nick, chan, message la plupart du temps)
-;; La fonction fait ce qu'elle souhaite avec ces arguments
-(defstruct hook :functions :regexp :parse-args)
+; TODO: defmacro main-loop [refresh-time]
+;TODO error handling
 
-(defn create-recv-hook [connection regexp parse-args-func]
-  "Crée un hook"
-  (assoc connection :recv-hooks
-	 (cons 
-	  (struct hook '() regexp parse-args-func)
-	  (:recv-hooks connection))))
+; Boucle principale
+;Thread.currentThread().sleep(1000);//sleep for 1000 ms
 
-(defn add-func [hook function]
-  "Ajoute une fonction à appeler à un hook"
-  (assoc hook :functions 
-	 (cons function (:functions hook))))
-
-(defn call-functions [hook string]
-  "Appelle toutes les fonctions du hook"
-  (let [args ((:parse-args hook) string)]
-    (doseq [f (:functions hook)]
-      (apply f args))))
-
-
+(defn main-loop [connection]
+  (let [data (recv connection)]
+     (call-hooks-if-match connection data))
+  (when (not @*stop*)
+    (recur connection)))
+     
 
 ;(def privmsg-hook (create-recv-hook c #"PRIVMSG :#[\w\-]+ :.+"))
 ;(create-recv-hook privmsg-hook)
@@ -80,3 +111,6 @@
 ;; Authentification : 
 ;; NICK <nick>
 ;; USER nom domaine serveur nomréel
+
+; test
+;(def c (new-connection "127.0.0.1" 6667))

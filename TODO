@@ -9,4 +9,12 @@ Bot IRC
         -> les chans/servers
         -> parler sur un chan
         -> lancer des commandes bash
-    
+        -> connection à maxima, interpréter commandes maxima
+        -> Interpréter commandes de Clojure
+        -> Interpréter commandes d'autres langages (lisp, python, ...)
+    o Structure des fichiers
+        -> network.clj: tout ce qui est relatif au réseau de "bas
+    niveau", gestion des sockets principalement, et des hooks à
+    appeler
+        -> ?
+
