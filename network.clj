@@ -94,7 +94,9 @@
 (defn call-hooks-if-match [connection data]
   (doseq [h (:recv-hooks connection)]
     (if (re-seq (:regexp h) data)
-      (do (println "Hook matched" (:name h)) (call-functions h data)))))
+      (do (println "Hook matched :" (:name h)) (call-functions h
+  data))
+      (println "Hook not mathed :" (:name h)))))
 
 ; TODO: defmacro main-loop [refresh-time]
 ;TODO error handling
