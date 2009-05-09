@@ -11,6 +11,7 @@
 (def *domain* "clobot")
 (def *serv* "clobot")
 (def *realname* "clobot")
+(def *max-output* 100)
 
 (def *admins* '("acieroid"))
 
@@ -23,8 +24,14 @@
       (or (= (first acc) x) 
 	  (recur (rest acc)))
       'false)))
+(defn length [l]
+  (loop [n 0
+	 acc l]
+    (if (rest acc)
+      (recur (inc n) (rest acc))
+      (inc n))))
 
-; Connection 
+; connection 
 (def *connection* (ref nil))
 
 (defn connect []
@@ -34,7 +41,7 @@
   (println "Command sent : " cmd)
   (write @*connection* (str cmd "\n")))
 
-; IRC Commands
+; irc commands
 (defn auth []
   (send-cmd
    (str "NICK " *nick* " \n"
@@ -58,7 +65,7 @@
    (str "QUIT")))
 
 
-; Hooks
+; hooks
 (defn add-hook [hook]
   (dosync (ref-set *connection*
 		   (add-recv-hook @*connection* hook))))
@@ -124,9 +131,18 @@
 		    (list (fn [who chan code]
 			    (if (member who *admins*) 
 			      (say chan
-				   (try (str (eval 
-					      (read-string
-					       code)))
+				   (try 
+				    (let [val  
+					    (str (eval 
+						  (read-string
+						   code)))]
+				      (if (< (length val)
+					     *max-output*)
+					val
+					(str (apply str (take
+							 *max-output*
+							 val))
+					     "... (too long)")))
 					(catch Exception e (str e)))))))
 		    #":(\w+).* PRIVMSG (#\w+) :!eval (.*)"
 		    #(list (second %) (second (rest %)) (second (rest
@@ -145,7 +161,8 @@
   (connect)
   (create-hooks)
   (auth)
-  (try (.start (Thread. #(main-loop @*connection*)))
+  (try (.start (Thread. #(main-loop *connection*)))
+   ;(main-loop *connection*)
        (catch Exception e (do
 			    (println 
 			     (str "Caught error :\n" e "\nQuitting"))

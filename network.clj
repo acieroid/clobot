@@ -9,11 +9,7 @@
 	'(clojure.lang LineNumberingPushbackReader))
 
 (def *stop* (ref nil))
-;; TODO:
-;; créer une connection
-;; écouter sur une connection
-;; envoyer du texte sur une connection
-;; attendre la réponse
+
 (defmacro debug
   [expr]
   `(let [value# ~expr]
@@ -58,13 +54,6 @@
       (apply f args))))
 
 
-;; Structure "connection" contenant :
-;;   -> Des hooks à appeler quand on reçoit du texte
-;;   -> La socket
-;; Fonctions associées
-;;   -> Créer un hook
-;;   -> Envoyer du texte dans la socket
-;;   -> Dernier texte reçu dans la socket
 (defstruct connection :socket :recv-hooks :input :output)
 
 (defn new-connection 
@@ -92,35 +81,16 @@
 	(recur (str s (char current-byte)) (cb))))))
 		 
 (defn call-hooks-if-match [connection data]
+  (do (println "Hooks : " (map :name (:recv-hooks connection)))
   (doseq [h (:recv-hooks connection)]
     (if (re-seq (:regexp h) data)
       (do (println "Hook matched :" (:name h)) (call-functions h
   data))
-      (println "Hook not mathed :" (:name h)))))
-
-; TODO: defmacro main-loop [refresh-time]
-;TODO error handling
-
-; Boucle principale
-;Thread.currentThread().sleep(1000);//sleep for 1000 ms
+      (println "Hook not mathed :" (:name h))))))
 
 (defn main-loop [connection]
-  (let [data (recv connection)]
-     (call-hooks-if-match connection (debug data)))
+  (let [data (recv @connection)]
+     (call-hooks-if-match @connection (debug data)))
   (when (== @*stop* 0)
     (recur connection)))
 
-;(def privmsg-hook (create-recv-hook c #"PRIVMSG :#[\w\-]+ :.+"))
-;(create-recv-hook privmsg-hook)
-;(add-recv-hook privmsg-hook)
-;(add-hook privmsg-hook (fn [nick 
-
-
-
-;; Protocole IRC : 
-;; Authentification : 
-;; NICK <nick>
-;; USER nom domaine serveur nomréel
-
-; test
-;(def c (new-connection "127.0.0.1" 6667))
