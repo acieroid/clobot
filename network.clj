@@ -28,7 +28,7 @@
 ;; toute ses fonctions avec certains arguments (dépend du hook, 
 ;; nick, chan, message la plupart du temps)
 ;; La fonction fait ce qu'elle souhaite avec ces arguments
-(defstruct hook :functions :regexp :parse-args)
+(defstruct hook :name :functions :regexp :parse-args)
 
 (defn add-recv-hook [connection hook]
   "Crée un hook"
@@ -37,6 +37,15 @@
 	  hook
 	  (:recv-hooks connection))))
 
+(defn replace-hook [connection hook1 hook2]
+  "Remplace hook1 par hook2"
+  (loop [hooks (:recv-hooks connection) 
+	 acc '()]
+    (if (= (first hooks) hook1)
+      (assoc connection :recv-hooks 
+	     (concat acc (list hook2) (rest hooks)))
+      (recur (rest hooks) (cons (first hooks) acc)))))
+
 (defn add-func [hook function]
   "Ajoute une fonction à appeler à un hook"
   (assoc hook :functions 
@@ -44,8 +53,8 @@
 
 (defn call-functions [hook string]
   "Appelle toutes les fonctions du hook"
-  (let [args ((:parse-args hook) string)]
-    (doseq [f (:functions hook))]
+  (let [args ((:parse-args hook) (re-find (:regexp hook) string))]
+    (doseq [f (:functions hook)]
       (apply f args))))
 
 
@@ -95,10 +104,9 @@
 
 (defn main-loop [connection]
   (let [data (recv connection)]
-     (call-hooks-if-match connection data))
+     (call-hooks-if-match connection (debug data)))
   (when (not @*stop*)
     (recur connection)))
-     
 
 ;(def privmsg-hook (create-recv-hook c #"PRIVMSG :#[\w\-]+ :.+"))
 ;(create-recv-hook privmsg-hook)
