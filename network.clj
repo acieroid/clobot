@@ -94,7 +94,7 @@
 (defn call-hooks-if-match [connection data]
   (doseq [h (:recv-hooks connection)]
     (if (re-seq (:regexp h) data)
-      (call-functions h data))))
+      (do (println "Hook matched" (:name h)) (call-functions h data)))))
 
 ; TODO: defmacro main-loop [refresh-time]
 ;TODO error handling
@@ -105,7 +105,7 @@
 (defn main-loop [connection]
   (let [data (recv connection)]
      (call-hooks-if-match connection (debug data)))
-  (when (not @*stop*)
+  (when (== @*stop* 0)
     (recur connection)))
 
 ;(def privmsg-hook (create-recv-hook c #"PRIVMSG :#[\w\-]+ :.+"))

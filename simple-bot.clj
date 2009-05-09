@@ -27,6 +27,7 @@
   (dosync (ref-set *connection* (new-connection *server* *port*))))
 
 (defn send-cmd [cmd]
+  (println "Command sent : " cmd)
   (write @*connection* (str cmd "\n")))
 ; Fonctions IRC
 
@@ -47,6 +48,11 @@
   (send-cmd 
    (str "PRIVMSG " nick-chan " :" message)))
 
+(defn quit []
+  (dosync (ref-set *stop* 1))
+  (send-cmd
+   (str "QUIT")))
+
 
 ; Hooks
 (defn add-hook [hook]
@@ -63,18 +69,35 @@
 					f))))
       (recur (rest hooks)))))
 
+; TODO simplifier les hooks des PRIVMSG
 (defn create-hooks []
   ; Pour arrêter la connection
-  (add-hook (struct hook 'stop (list (fn [x] (dosync (ref-set *stop*
-							      1)))) 
-		    #"clobot/stop-listening"  #(list %)))
+  (add-hook (struct hook 'stop (list (fn [x] (quit))) 
+		    #":.* PRIVMSG (#?\w+) :!quit"  #(list %)))
   ; Pour le PING
   (add-hook (struct hook 'pong (list (fn [serv] 
 				       (send-cmd (str "PONG :"
 						      serv))))
 		    #"PING :(\w*)" 
 		    #(list (second %))))
+  (add-hook (struct hook 'say (list (fn [chan what] 
+				      (send-cmd (str "PRIVMSG "
+						     chan " :"
+						     what))))
+		    #":.* PRIVMSG (#\w+) :!say (.*)"
+		    #(list (second %) (second (rest %)))))
+  (add-hook (struct hook 'say-chan (list (fn [chan what]
+					   (send-cmd (str "PRIVMSG "
+							  chan " :"
+							  what))))
+		    #":.* PRIVMSG .* :!saychan (#\w+) (.*)"
+		    #(list (second %) (second (rest %)))))
+;  (add-hook (struct hook 'reload (list (fn [] (load "network")
+;					 (load "simple-bot")))
+;		    #":.* PRIVMSG #?.* :!reload"
+;		    #(list)))
   )
+
 (comment  (let [simple-hook
 	(struct hook 'lol (list (fn [x] (dosync (ref-set (debug *stop*) 1))))
 		#"lol" #(list %))]
@@ -84,6 +107,7 @@
 
 ; Main loop
 (defn start []
+  (dosync (ref-set *stop* 0))
   (connect)
   (create-hooks)
   (auth)
