@@ -92,17 +92,21 @@
 							  what))))
 		    #":.* PRIVMSG .* :!saychan (#\w+) (.*)"
 		    #(list (second %) (second (rest %)))))
+  ; Not secure at all, just be carefull with that
+  (add-hook (struct hook 'eval 
+		    (list (fn [chan code]
+			    (say chan
+				 (try (str (eval 
+					    (read-string
+					     code)))
+				      (catch Exception e (str e))))))
+		    #":.* PRIVMSG (#\w+) :!eval (.*)"
+		    #(list (second %) (second (rest %)))))
 ;  (add-hook (struct hook 'reload (list (fn [] (load "network")
 ;					 (load "simple-bot")))
 ;		    #":.* PRIVMSG #?.* :!reload"
 ;		    #(list)))
   )
-
-(comment  (let [simple-hook
-	(struct hook 'lol (list (fn [x] (dosync (ref-set (debug *stop*) 1))))
-		#"lol" #(list %))]
-    (dosync (ref-set *connection* 
-		     (add-recv-hook @*connection* simple-hook)))))
 
 
 ; Main loop
