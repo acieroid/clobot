@@ -51,7 +51,10 @@
   "Appelle toutes les fonctions du hook"
   (let [args ((:parse-args hook) (re-find (:regexp hook) string))]
     (doseq [f (:functions hook)]
-      (apply f args))))
+      (try (apply f args)
+	   (catch Exception e 
+	     (println "Error in hook `" (:name hook) "' : " (str
+							     e)))))))
 
 
 (defstruct connection :socket :recv-hooks :input :output)
